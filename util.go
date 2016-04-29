@@ -11,6 +11,7 @@
 package viper
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -37,6 +38,16 @@ type ConfigParseError struct {
 // Returns the formatted configuration error.
 func (pe ConfigParseError) Error() string {
 	return fmt.Sprintf("While parsing config: %s", pe.err.Error())
+}
+
+// Denotes failing to write configuration file.
+type ConfigWriteError struct {
+	err error
+}
+
+// Returns the formatted configuration error.
+func (we ConfigWriteError) Error() string {
+	return fmt.Sprintf("While writing config: %s", we.err.Error())
 }
 
 func insensitiviseMap(m map[string]interface{}) {
@@ -128,6 +139,40 @@ func findCWD() (string, error) {
 	}
 
 	return path, nil
+}
+
+func mashallConfigWriter(f *os.File, configType string) error {
+
+	var err error
+
+	switch strings.ToLower(configType) {
+	case "json":
+		var b []byte
+		if b, err = json.MarshalIndent(v.AllSettings(), "", "    "); err != nil {
+			e := fmt.Errorf("JSON: %v", err)
+			return ConfigWriteError{e}
+		}
+		f.WriteString(string(b))
+
+	case "toml":
+
+		w := bufio.NewWriter(f)
+		if err = toml.NewEncoder(w).Encode(v.AllSettings()); err != nil {
+			e := fmt.Errorf("TOML: %v", err)
+			return ConfigWriteError{e}
+		}
+		w.Flush()
+
+	case "yaml", "yml":
+		var b []byte
+		b, err = yaml.Marshal(v.AllSettings())
+		if err != nil {
+			e := fmt.Errorf("YAML: %v", err)
+			return ConfigWriteError{e}
+		}
+		f.WriteString(string(b))
+	}
+	return nil
 }
 
 func unmarshallConfigReader(in io.Reader, c map[string]interface{}, configType string) error {

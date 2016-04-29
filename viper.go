@@ -979,6 +979,44 @@ func (v *Viper) MergeConfig(in io.Reader) error {
 	return nil
 }
 
+
+func writeConfig(safe bool) error { return v.writeConfig(safe) }
+func (v *Viper) writeConfig(safe bool) error {
+
+	jww.INFO.Println("Attempting to write config into the file.")
+	if !stringInSlice(v.getConfigType(), SupportedExts) {
+		return UnsupportedConfigError(v.getConfigType())
+	}
+	var option int
+	
+	if safe {
+		option = os.O_EXCL|os.O_CREATE
+	} else {
+		option = os.O_RDWR
+	}
+
+	f, err := os.OpenFile(v.getConfigFile(),option, 0666)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return nil
+}
+
+func WriteConfig() error { return v.WriteConfig() }
+func (v *Viper) WriteConfig() error {
+	return v.writeConfig(false)
+}
+
+func SafeWriteConfig() error { return v.SafeWriteConfig() }
+func (v *Viper) SafeWriteConfig() error {
+	return v.writeConfig(true)
+}
+
+
+
+
 func keyExists(k string, m map[string]interface{}) string {
 	lk := strings.ToLower(k)
 	for mk := range m {
